@@ -1,0 +1,12 @@
+node_modules
+dist
+.git
+.env
+*.log
+coverage
+admin-ui
+outputs/*
+uploads/*
+!uploads/.gitkeep
+!outputs/.gitkeep
+

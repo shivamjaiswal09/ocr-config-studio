@@ -1,0 +1,80 @@
+
+> ocr-config-studio@1.0.0 dev
+> next dev
+
+  ▲ Next.js 14.2.33
+  - Local:        http://localhost:3000
+  - Environments: .env.local, .env
+
+ ✓ Starting...
+ ✓ Ready in 1279ms
+ ○ Compiling / ...
+ ✓ Compiled / in 1356ms (708 modules)
+ GET / 200 in 1540ms
+ ✓ Compiled in 230ms (365 modules)
+ GET / 200 in 25ms
+ ✓ Compiled /_not-found in 297ms (697 modules)
+ GET /.well-known/appspecific/com.chrome.devtools.json 404 in 382ms
+ ✓ Compiled /api/configs in 150ms (446 modules)
+ GET /api/configs 200 in 1413ms
+ GET /api/configs 200 in 144ms
+ GET /api/configs 200 in 136ms
+ GET /api/configs 200 in 144ms
+ ✓ Compiled /api/ocr/run in 188ms (589 modules)
+(node:74981) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+OpenAI OCR error: RateLimitError: 429 You exceeded your current quota, please check your plan and billing details. For more information on this error, read the docs: https://platform.openai.com/docs/guides/error-codes/api-errors.
+    at APIError.generate (webpack-internal:///(rsc)/./node_modules/openai/error.mjs:78:20)
+    at OpenAI.makeStatusError (webpack-internal:///(rsc)/./node_modules/openai/core.mjs:333:65)
+    at OpenAI.makeRequest (webpack-internal:///(rsc)/./node_modules/openai/core.mjs:377:30)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async runOcrWithOpenAI (webpack-internal:///(rsc)/./lib/ocr/openaiOcr.ts:54:22)
+    at async POST (webpack-internal:///(rsc)/./app/api/ocr/run/route.ts:96:25)
+    at async /Users/admin/Desktop/PDF template/node_modules/next/dist/compiled/next-server/app-route.runtime.dev.js:6:57228
+    at async eT.execute (/Users/admin/Desktop/PDF template/node_modules/next/dist/compiled/next-server/app-route.runtime.dev.js:6:46851)
+    at async eT.handle (/Users/admin/Desktop/PDF template/node_modules/next/dist/compiled/next-server/app-route.runtime.dev.js:6:58760)
+    at async doRender (/Users/admin/Desktop/PDF template/node_modules/next/dist/server/base-server.js:1366:42)
+    at async cacheEntry.responseCache.get.routeKind (/Users/admin/Desktop/PDF template/node_modules/next/dist/server/base-server.js:1588:28)
+    at async DevServer.renderToResponseWithComponentsImpl (/Users/admin/Desktop/PDF template/node_modules/next/dist/server/base-server.js:1496:28)
+    at async DevServer.renderPageComponent (/Users/admin/Desktop/PDF template/node_modules/next/dist/server/base-server.js:1924:24)
+    at async DevServer.renderToResponseImpl (/Users/admin/Desktop/PDF template/node_modules/next/dist/server/base-server.js:1962:32)
+    at async DevServer.pipeImpl (/Users/admin/Desktop/PDF template/node_modules/next/dist/server/base-server.js:922:25)
+    at async NextNodeServer.handleCatchallRenderRequest (/Users/admin/Desktop/PDF template/node_modules/next/dist/server/next-server.js:272:17)
+    at async DevServer.handleRequestImpl (/Users/admin/Desktop/PDF template/node_modules/next/dist/server/base-server.js:818:17)
+    at async /Users/admin/Desktop/PDF template/node_modules/next/dist/server/dev/next-dev-server.js:339:20
+    at async Span.traceAsyncFn (/Users/admin/Desktop/PDF template/node_modules/next/dist/trace/trace.js:154:20)
+    at async DevServer.handleRequest (/Users/admin/Desktop/PDF template/node_modules/next/dist/server/dev/next-dev-server.js:336:24)
+    at async invokeRender (/Users/admin/Desktop/PDF template/node_modules/next/dist/server/lib/router-server.js:179:21)
+    at async handleRequest (/Users/admin/Desktop/PDF template/node_modules/next/dist/server/lib/router-server.js:359:24)
+    at async requestHandlerImpl (/Users/admin/Desktop/PDF template/node_modules/next/dist/server/lib/router-server.js:383:13)
+    at async Server.requestListener (/Users/admin/Desktop/PDF template/node_modules/next/dist/server/lib/start-server.js:141:13) {
+  status: 429,
+  headers: {
+    'alt-svc': 'h3=":443"; ma=86400',
+    'cf-cache-status': 'DYNAMIC',
+    'cf-ray': '99f1e8174de9343c-BLR',
+    connection: 'keep-alive',
+    'content-length': '337',
+    'content-type': 'application/json; charset=utf-8',
+    date: 'Sat, 15 Nov 2025 21:40:23 GMT',
+    server: 'cloudflare',
+    'set-cookie': '__cf_bm=NBvHCcvJGV76AX8Ebv7FMpGtgJiwQrhDXaY2kS_unl8-1763242823-1.0.1.1-3R2u5hzU397IlpyAbfktcN75Qd3vZpQkxTy2PohNZGsTU_C_mGMbyCJGd8P01.cl3Mhrr9LIWq1aRoKLDL20w9KQg92VBkRs6TepHkNKTqc; path=/; expires=Sat, 15-Nov-25 22:10:23 GMT; domain=.api.openai.com; HttpOnly; Secure; SameSite=None, _cfuvid=OF2qK.ng7IVMjKVI.cHfAqFvv9Slek0lHOEE2vjUx_A-1763242823015-0.0.1.1-604800000; path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None',
+    'strict-transport-security': 'max-age=31536000; includeSubDomains; preload',
+    vary: 'Origin',
+    'x-content-type-options': 'nosniff',
+    'x-envoy-upstream-service-time': '126',
+    'x-openai-proxy-wasm': 'v0.1',
+    'x-request-id': 'req_25c0da240f63433a84d4f3aca7b1f041'
+  },
+  request_id: 'req_25c0da240f63433a84d4f3aca7b1f041',
+  error: {
+    message: 'You exceeded your current quota, please check your plan and billing details. For more information on this error, read the docs: https://platform.openai.com/docs/guides/error-codes/api-errors.',
+    type: 'insufficient_quota',
+    param: null,
+    code: 'insufficient_quota'
+  },
+  code: 'insufficient_quota',
+  param: null,
+  type: 'insufficient_quota'
+}
+ POST /api/ocr/run 500 in 4403ms
