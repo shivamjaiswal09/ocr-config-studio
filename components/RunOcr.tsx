@@ -18,20 +18,31 @@ export default function RunOcr() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadingConfigs, setLoadingConfigs] = useState(true);
   const [result, setResult] = useState<RunOcrResponse | null>(null);
 
   useEffect(() => {
     fetchConfigs();
   }, []);
 
+  // Auto-select first config when configs are loaded
+  useEffect(() => {
+    if (configs.length > 0 && !selectedConfigId) {
+      setSelectedConfigId(configs[0].id);
+    }
+  }, [configs, selectedConfigId]);
+
   const fetchConfigs = async () => {
     try {
+      setLoadingConfigs(true);
       const response = await fetch("/api/configs");
       if (!response.ok) throw new Error("Failed to fetch configs");
       const data = await response.json();
       setConfigs(data);
     } catch (error: any) {
       toast.error("Failed to load configs", { description: error.message });
+    } finally {
+      setLoadingConfigs(false);
     }
   };
 
@@ -151,19 +162,35 @@ export default function RunOcr() {
           {/* Config Selection */}
           <div className="space-y-2">
             <Label htmlFor="config">Configuration *</Label>
-            <Select value={selectedConfigId} onValueChange={setSelectedConfigId}>
-              <SelectTrigger id="config">
-                <SelectValue placeholder="Select a configuration" />
-              </SelectTrigger>
-              <SelectContent>
-                {configs.map((config) => (
-                  <SelectItem key={config.id} value={config.id}>
-                    {config.document_type} - {config.company_id}
-                    {config.transporter_company_id && ` (${config.transporter_company_id})`}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {loadingConfigs ? (
+              <div className="flex items-center justify-center h-10 border rounded-md bg-slate-50">
+                <Loader2 className="h-4 w-4 animate-spin text-slate-500" />
+                <span className="ml-2 text-sm text-slate-500">Loading configurations...</span>
+              </div>
+            ) : configs.length === 0 ? (
+              <div className="p-3 border rounded-md bg-slate-50 text-sm text-slate-600">
+                No configurations available. Please create one in the Config Management tab.
+              </div>
+            ) : (
+              <Select value={selectedConfigId} onValueChange={setSelectedConfigId}>
+                <SelectTrigger id="config" className="w-full">
+                  <SelectValue placeholder="Select a configuration" />
+                </SelectTrigger>
+                <SelectContent className="z-[100] max-h-[300px]">
+                  {configs.map((config) => (
+                    <SelectItem key={config.id} value={config.id}>
+                      <div className="flex flex-col">
+                        <span className="font-medium">{config.document_type}</span>
+                        <span className="text-xs text-slate-500">
+                          {config.company_id}
+                          {config.transporter_company_id && ` • ${config.transporter_company_id}`}
+                        </span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
 
           {/* Selected Config Info */}
