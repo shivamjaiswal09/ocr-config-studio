@@ -52,18 +52,34 @@ export function isSupabaseAvailable(): boolean {
  * Lazy-initialized on first use
  * Returns null if Supabase is not configured (for PoC compatibility)
  */
+// Mock query builder for when Supabase is not configured
+const createMockQueryBuilder = () => {
+  const mockResult = Promise.resolve({ data: [], error: { message: 'Supabase not configured' } });
+  
+  const mockBuilder = {
+    eq: () => mockBuilder,
+    is: () => mockBuilder,
+    order: () => mockBuilder,
+    insert: () => ({ select: () => ({ single: () => mockResult }) }),
+    update: () => ({ eq: () => mockResult }),
+    single: () => mockResult,
+    then: (onResolve: any, onReject?: any) => mockResult.then(onResolve, onReject),
+    catch: (onReject: any) => mockResult.catch(onReject),
+  };
+  
+  return mockBuilder;
+};
+
 export const supabase = new Proxy({} as SupabaseClient, {
   get: (target, prop) => {
     const client = getSupabaseClient();
     if (!client) {
-      // Return a mock object that throws helpful errors
+      // Return a mock object that supports full query chain
       if (prop === 'from') {
         return () => ({
-          select: () => ({
-            eq: () => ({
-              single: () => Promise.resolve({ data: null, error: { message: 'Supabase not configured' } }),
-            }),
-            is: () => ({
+          select: () => createMockQueryBuilder(),
+          insert: (data: any) => ({
+            select: () => ({
               single: () => Promise.resolve({ data: null, error: { message: 'Supabase not configured' } }),
             }),
           }),
