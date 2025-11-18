@@ -350,7 +350,13 @@ export async function extractInvoiceFromBase64(
 
   // Convert base64 to buffer
   const pdfBuffer = Buffer.from(base64String, "base64");
+  
+  // Pass the original base64 data URL for Vision API fallback
+  // Ensure it has the proper data URL format
+  const pdfDataUrl = base64Data.startsWith("data:") 
+    ? base64Data 
+    : `data:application/pdf;base64,${base64String}`;
 
-  return extractInvoiceFromPdf(pdfBuffer, ocrConfig);
+  return extractInvoiceFromPdf(pdfBuffer, ocrConfig, pdfDataUrl);
 }
 
