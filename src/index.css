@@ -1,0 +1,67 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* B2B SaaS Professional Theme */
+    --background: 0 0% 98%;
+    --foreground: 222 47% 11%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    /* Professional indigo for primary actions */
+    --primary: 221 83% 53%;
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 221 83% 48%;
+
+    /* Subtle gray for secondary elements */
+    --secondary: 210 17% 95%;
+    --secondary-foreground: 222 47% 11%;
+    --secondary-hover: 210 17% 90%;
+
+    /* Muted backgrounds and text */
+    --muted: 210 17% 95%;
+    --muted-foreground: 215 16% 47%;
+
+    /* Success accent */
+    --accent: 142 76% 36%;
+    --accent-foreground: 0 0% 100%;
+
+    /* Destructive actions */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Borders and inputs */
+    --border: 214 32% 88%;
+    --input: 214 32% 91%;
+    --ring: 221 83% 53%;
+
+    /* Radius for consistent rounded corners */
+    --radius: 0.5rem;
+
+    /* Custom tokens for the app */
+    --app-header-bg: 0 0% 100%;
+    --app-header-border: 214 32% 88%;
+    --table-header-bg: 210 17% 98%;
+    --hover-bg: 221 83% 97%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
