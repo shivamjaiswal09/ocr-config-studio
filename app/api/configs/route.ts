@@ -5,7 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase, isSupabaseAvailable } from "@/lib/supabaseClient";
 import { OcrConfig, CreateConfigRequest } from "@/types/ocr";
 
 /**
@@ -17,6 +17,12 @@ import { OcrConfig, CreateConfigRequest } from "@/types/ocr";
  */
 export async function GET(request: NextRequest) {
   try {
+    // Check if Supabase is configured
+    if (!isSupabaseAvailable()) {
+      console.log("Supabase not configured, returning empty configs array");
+      return NextResponse.json([] as OcrConfig[]);
+    }
+
     const searchParams = request.nextUrl.searchParams;
     const documentType = searchParams.get("documentType");
     const companyId = searchParams.get("companyId");
@@ -75,6 +81,17 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
+    // Check if Supabase is configured
+    if (!isSupabaseAvailable()) {
+      return NextResponse.json(
+        { 
+          error: "Supabase is not configured", 
+          details: "Please set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables to save configurations." 
+        },
+        { status: 503 }
+      );
+    }
+
     const body: CreateConfigRequest = await request.json();
 
     // Validation
