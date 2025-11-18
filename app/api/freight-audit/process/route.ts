@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase, isSupabaseAvailable } from "@/lib/supabaseClient";
 import { OcrConfig } from "@/types/ocr";
 import { extractInvoiceFromBase64 } from "@/lib/freightAudit/ocrExtractionService";
 import { runFreightAudit } from "@/lib/freightAudit/freightAuditService";
@@ -100,7 +100,83 @@ export async function POST(request: NextRequest) {
     // Step 1: Resolve OCR config
     let config: OcrConfig | null = null;
 
-    if (configId) {
+    // Helper function to create default OCR config
+    const createDefaultConfig = (): OcrConfig => {
+      const defaultFields = [
+        {
+          field_label: "Invoice Number",
+          field_key: "invoice_number",
+          data_type: "string" as const,
+          required: true,
+          payload_mapping_key: "invoice_number" as const,
+        },
+        {
+          field_label: "Invoice Date",
+          field_key: "invoice_date",
+          data_type: "date" as const,
+          required: true,
+          payload_mapping_key: "invoice_date" as const,
+        },
+        {
+          field_label: "Vehicle Number",
+          field_key: "vehicle_number",
+          data_type: "string" as const,
+          required: true,
+          payload_mapping_key: "vehicle_number" as const,
+        },
+        {
+          field_label: "Base Freight",
+          field_key: "base_freight",
+          data_type: "number" as const,
+          required: true,
+          payload_mapping_key: null,
+        },
+        {
+          field_label: "Additional Charges",
+          field_key: "additional_charges",
+          data_type: "array" as const,
+          required: false,
+          payload_mapping_key: null,
+        },
+        {
+          field_label: "GST Amount",
+          field_key: "gst_amount",
+          data_type: "number" as const,
+          required: true,
+          payload_mapping_key: "tax_amount" as const,
+        },
+      ];
+
+      const defaultPrompt = `Extract all information from this freight invoice document. 
+Focus on extracting:
+- Invoice number and date
+- Vehicle number(s) and trip details
+- Base freight charges
+- Additional charges (detention, toll, unloading, etc.)
+- GST/tax amounts
+- Origin and destination locations
+- LR numbers and trip IDs
+
+Return the data as JSON with trips as an array if multiple trips exist, or as a single trip object if only one trip is present.`;
+
+      return {
+        id: "default",
+        document_type: documentType,
+        company_id: lookupCompanyId,
+        apply_at_transporter_level: false,
+        transporter_company_id: null,
+        fields: defaultFields,
+        prompt: defaultPrompt,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      } as OcrConfig;
+    };
+
+    // If Supabase is not available, use default config
+    if (!isSupabaseAvailable()) {
+      console.log("Supabase not configured, using default OCR config");
+      config = createDefaultConfig();
+    } else if (configId) {
       // Lookup by config ID (preferred)
       const { data, error } = await supabase
         .from("ocr_configs")
@@ -109,13 +185,11 @@ export async function POST(request: NextRequest) {
         .single();
 
       if (error || !data) {
-        return NextResponse.json(
-          { error: "OCR config not found", details: error?.message },
-          { status: 404 }
-        );
+        console.log("OCR config not found by ID, using default");
+        config = createDefaultConfig();
+      } else {
+        config = data as OcrConfig;
       }
-
-      config = data as OcrConfig;
     } else {
       // Lookup by criteria (documentType + companyId)
       // Try with transporter filter first
@@ -140,91 +214,35 @@ export async function POST(request: NextRequest) {
           .single();
 
         if (generalError || !generalConfig) {
-          // Create a default config if none exists
+          // Try to create default config in Supabase, but fallback to in-memory if that fails
           console.log(`No OCR config found, creating default for ${documentType} / ${lookupCompanyId}`);
           
-          const defaultFields = [
-            {
-              field_label: "Invoice Number",
-              field_key: "invoice_number",
-              data_type: "string" as const,
-              required: true,
-              payload_mapping_key: "invoice_number" as const,
-            },
-            {
-              field_label: "Invoice Date",
-              field_key: "invoice_date",
-              data_type: "date" as const,
-              required: true,
-              payload_mapping_key: "invoice_date" as const,
-            },
-            {
-              field_label: "Vehicle Number",
-              field_key: "vehicle_number",
-              data_type: "string" as const,
-              required: true,
-              payload_mapping_key: "vehicle_number" as const,
-            },
-            {
-              field_label: "Base Freight",
-              field_key: "base_freight",
-              data_type: "number" as const,
-              required: true,
-              payload_mapping_key: null,
-            },
-            {
-              field_label: "Additional Charges",
-              field_key: "additional_charges",
-              data_type: "array" as const,
-              required: false,
-              payload_mapping_key: null,
-            },
-            {
-              field_label: "GST Amount",
-              field_key: "gst_amount",
-              data_type: "number" as const,
-              required: true,
-              payload_mapping_key: "tax_amount" as const,
-            },
-          ];
+          const defaultConfig = createDefaultConfig();
+          
+          try {
+            const { data: newConfig, error: createError } = await supabase
+              .from("ocr_configs")
+              .insert({
+                document_type: documentType,
+                company_id: lookupCompanyId,
+                apply_at_transporter_level: false,
+                transporter_company_id: null,
+                fields: defaultConfig.fields,
+                prompt: defaultConfig.prompt,
+              })
+              .select()
+              .single();
 
-          const defaultPrompt = `Extract all information from this freight invoice document. 
-Focus on extracting:
-- Invoice number and date
-- Vehicle number(s) and trip details
-- Base freight charges
-- Additional charges (detention, toll, unloading, etc.)
-- GST/tax amounts
-- Origin and destination locations
-- LR numbers and trip IDs
-
-Return the data as JSON with trips as an array if multiple trips exist, or as a single trip object if only one trip is present.`;
-
-          const { data: newConfig, error: createError } = await supabase
-            .from("ocr_configs")
-            .insert({
-              document_type: documentType,
-              company_id: lookupCompanyId,
-              apply_at_transporter_level: false,
-              transporter_company_id: null,
-              fields: defaultFields,
-              prompt: defaultPrompt,
-            })
-            .select()
-            .single();
-
-          if (createError || !newConfig) {
-            console.error("Failed to create default OCR config:", createError);
-            return NextResponse.json(
-              {
-                error: "OCR config not found and failed to create default",
-                details: createError?.message || "Unknown error",
-              },
-              { status: 500 }
-            );
+            if (!createError && newConfig) {
+              config = newConfig as OcrConfig;
+            } else {
+              console.warn("Failed to save default config to Supabase, using in-memory config:", createError?.message);
+              config = defaultConfig;
+            }
+          } catch (err) {
+            console.warn("Error saving default config to Supabase, using in-memory config:", err);
+            config = defaultConfig;
           }
-
-          config = newConfig as OcrConfig;
         } else {
           config = generalConfig as OcrConfig;
         }
