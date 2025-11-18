@@ -32,8 +32,17 @@ export default function FreightAudit() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.type !== "application/pdf") {
-        toast.error("Please upload a PDF file");
+      // Accept PDFs and image files
+      const validTypes = [
+        "application/pdf",
+        "image/png",
+        "image/jpeg",
+        "image/jpg",
+        "image/webp",
+      ];
+      
+      if (!validTypes.includes(file.type)) {
+        toast.error("Please upload a PDF or image file (PNG, JPEG, WebP)");
         return;
       }
       setSelectedFile(file);
@@ -45,7 +54,7 @@ export default function FreightAudit() {
 
   const handleProcessInvoice = async () => {
     if (!selectedFile) {
-      toast.error("Please upload an invoice PDF");
+      toast.error("Please upload an invoice file (PDF or image)");
       return;
     }
 
@@ -232,17 +241,17 @@ export default function FreightAudit() {
               <Upload className="w-12 h-12 text-slate-400 mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-slate-900 mb-2">Upload Invoice to Begin</h3>
               <p className="text-sm text-slate-600 mb-6">
-                Upload an invoice PDF to process and audit against Proforma records
+                Upload an invoice PDF or image (PNG, JPEG) to process and audit against Proforma records
               </p>
               <div className="flex flex-col items-center gap-4">
                 <div className="space-y-1">
                   <Label htmlFor="file" className="text-xs text-slate-500">
-                    Invoice PDF
+                    Invoice File (PDF or Image)
                   </Label>
                   <Input
                     id="file"
                     type="file"
-                    accept="application/pdf"
+                    accept=".pdf,.png,.jpg,.jpeg,.webp,application/pdf,image/png,image/jpeg,image/jpg,image/webp"
                     onChange={handleFileChange}
                     className="w-64"
                   />

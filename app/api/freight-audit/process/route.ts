@@ -54,10 +54,29 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Convert file to base64
+      // Convert file to base64 with proper MIME type
       const arrayBuffer = await file.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
-      fileBase64 = `data:application/pdf;base64,${buffer.toString("base64")}`;
+      
+      // Detect MIME type from file
+      let mimeType = file.type || "application/pdf";
+      if (!mimeType || mimeType === "application/octet-stream") {
+        // Try to detect from file extension or buffer
+        const fileName = file.name.toLowerCase();
+        if (fileName.endsWith(".png")) mimeType = "image/png";
+        else if (fileName.endsWith(".jpg") || fileName.endsWith(".jpeg")) mimeType = "image/jpeg";
+        else if (fileName.endsWith(".webp")) mimeType = "image/webp";
+        else if (fileName.endsWith(".pdf")) mimeType = "application/pdf";
+        else {
+          // Check buffer header
+          const header = buffer.slice(0, 4).toString();
+          if (header === "%PDF") mimeType = "application/pdf";
+          else if (buffer.slice(0, 2).toString("hex") === "ffd8") mimeType = "image/jpeg";
+          else if (buffer.slice(0, 8).toString("hex") === "89504e470d0a1a0a") mimeType = "image/png";
+        }
+      }
+      
+      fileBase64 = `data:${mimeType};base64,${buffer.toString("base64")}`;
 
       if (clientIdForm) clientId = clientIdForm;
       if (branchIdForm) branchId = branchIdForm;

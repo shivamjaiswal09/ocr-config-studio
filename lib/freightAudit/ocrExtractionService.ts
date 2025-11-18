@@ -324,7 +324,54 @@ export async function extractInvoiceFromPdf(
 }
 
 /**
- * Extract invoice data from base64 PDF data URL
+ * Extract invoice data from image using OpenAI Vision API
+ */
+export async function extractInvoiceFromImage(
+  imageBase64: string,
+  ocrConfig: {
+    prompt: string;
+    fields: any[];
+  }
+): Promise<ExtractedInvoice> {
+  try {
+    console.log("Step 1: Processing image with OpenAI Vision API...");
+    
+    // Ensure imageBase64 has proper data URL format
+    let imageDataUrl = imageBase64;
+    if (!imageBase64.startsWith("data:")) {
+      // Try to detect MIME type from base64 or default to image/png
+      imageDataUrl = `data:image/png;base64,${imageBase64}`;
+    }
+
+    // Step 2: Run OCR with OpenAI Vision API
+    console.log("Step 2: Running OCR with OpenAI Vision API...");
+    const ocrResult = await runOcrWithOpenAI({
+      prompt: ocrConfig.prompt,
+      inputText: undefined,
+      imageData: imageDataUrl, // Use Vision API for images
+      fields: ocrConfig.fields,
+    });
+
+    console.log("OCR completed, raw response keys:", Object.keys(ocrResult.parsedJson || {}));
+
+    // Step 3: Normalize OCR output to ExtractedInvoice format
+    console.log("Step 3: Normalizing OCR output...");
+    const normalized = normalizeOcrOutput(ocrResult.parsedJson);
+    console.log("Normalization successful:", {
+      invoiceNumber: normalized.invoiceNumber,
+      tripsCount: normalized.trips.length,
+    });
+
+    return normalized;
+  } catch (error: any) {
+    console.error("Error in extractInvoiceFromImage:", error);
+    throw new Error(`Failed to extract invoice data from image: ${error.message || "Unknown error"}`);
+  }
+}
+
+/**
+ * Extract invoice data from base64 data URL (supports both PDF and images)
+ * Automatically detects file type and routes to appropriate handler
  */
 export async function extractInvoiceFromBase64(
   base64Data: string,
@@ -333,15 +380,39 @@ export async function extractInvoiceFromBase64(
     fields: any[];
   }
 ): Promise<ExtractedInvoice> {
-  // Extract base64 data (remove data URL prefix if present)
-  const base64String = base64Data.includes(",")
-    ? base64Data.split(",")[1]
-    : base64Data;
+  // Detect file type from data URL
+  const isImage = base64Data.startsWith("data:image/");
+  const isPdf = base64Data.startsWith("data:application/pdf") || base64Data.startsWith("data:application/x-pdf");
 
-  // Convert base64 to buffer
-  const pdfBuffer = Buffer.from(base64String, "base64");
-
-  // Extract from PDF (text-based only - Vision API doesn't support PDFs)
-  return extractInvoiceFromPdf(pdfBuffer, ocrConfig);
+  if (isImage) {
+    // Handle image files (PNG, JPEG, etc.) - use Vision API
+    console.log("Detected image file, using Vision API...");
+    return extractInvoiceFromImage(base64Data, ocrConfig);
+  } else if (isPdf) {
+    // Handle PDF files - extract text first
+    console.log("Detected PDF file, extracting text...");
+    const base64String = base64Data.includes(",")
+      ? base64Data.split(",")[1]
+      : base64Data;
+    const pdfBuffer = Buffer.from(base64String, "base64");
+    return extractInvoiceFromPdf(pdfBuffer, ocrConfig);
+  } else {
+    // Try to detect by checking if it's a valid PDF buffer
+    const base64String = base64Data.includes(",")
+      ? base64Data.split(",")[1]
+      : base64Data;
+    const buffer = Buffer.from(base64String, "base64");
+    
+    // Check if it's a PDF by header
+    const header = buffer.slice(0, 4).toString();
+    if (header === "%PDF") {
+      console.log("Detected PDF by header, extracting text...");
+      return extractInvoiceFromPdf(buffer, ocrConfig);
+    }
+    
+    // Assume it's an image if no PDF header
+    console.log("Assuming image file, using Vision API...");
+    return extractInvoiceFromImage(base64Data, ocrConfig);
+  }
 }
 
