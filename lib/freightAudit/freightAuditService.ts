@@ -17,7 +17,9 @@ import {
  * Sum all additional charges from an object
  */
 function sumAdditionalCharges(charges: Record<string, number | undefined>): number {
-  return Object.values(charges).reduce((sum, val) => sum + (val || 0), 0);
+  return Object.values(charges).reduce((sum: number, val: number | undefined) => {
+    return sum + (val ?? 0);
+  }, 0);
 }
 
 /**

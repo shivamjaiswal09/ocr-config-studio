@@ -10,4 +10,5 @@ src
 uploads
 outputs
 *.log
+vite.config.ts
 
