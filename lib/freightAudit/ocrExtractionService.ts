@@ -262,14 +262,28 @@ export async function extractInvoiceFromPdf(
       extractedText = await pdfToText(pdfBuffer);
     } catch (pdfError: any) {
       console.error("PDF parsing error:", pdfError);
-      if (pdfError.message && pdfError.message.includes("XRef")) {
+      const errorMessage = pdfError.message || "Unknown PDF parsing error";
+      
+      // Provide specific error messages based on error type
+      if (errorMessage.includes("XRef") || errorMessage.includes("xref") || errorMessage.includes("corrupted")) {
         throw new Error("The PDF file appears to be corrupted or in an unsupported format. Please try a different PDF file or ensure the file is not password-protected.");
       }
-      throw new Error(`Failed to parse PDF: ${pdfError.message || "Unknown PDF parsing error"}`);
+      if (errorMessage.includes("password") || errorMessage.includes("encrypted")) {
+        throw new Error("The PDF file is password-protected or encrypted. Please provide an unlocked version of the PDF.");
+      }
+      if (errorMessage.includes("image-based") || errorMessage.includes("no extractable text")) {
+        throw new Error("This PDF appears to be image-based (scanned document). Currently, we only support text-based PDFs. Please use a PDF with selectable text or convert the scanned PDF to text first.");
+      }
+      if (errorMessage.includes("Invalid PDF") || errorMessage.includes("does not start with PDF header")) {
+        throw new Error("Invalid PDF file format. Please ensure you're uploading a valid PDF document.");
+      }
+      
+      // Generic error with original message
+      throw new Error(`Failed to parse PDF: ${errorMessage}`);
     }
 
     if (!extractedText || extractedText.trim() === "") {
-      throw new Error("Could not extract text from PDF. The PDF might be image-based or corrupted.");
+      throw new Error("Could not extract text from PDF. The PDF might be image-based (scanned document) or corrupted. Please use a PDF with selectable text.");
     }
 
     console.log("PDF text extracted successfully, length:", extractedText.length);
