@@ -99,7 +99,7 @@ Create `.env.local` in the project root:
 ```bash
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
-OPENAI_API_KEY=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
+OPENAI_API_KEY=your_openai_api_key_here
 ```
 
 ### 2. Set Up Supabase Database
