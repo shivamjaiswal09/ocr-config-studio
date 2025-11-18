@@ -46,26 +46,34 @@ export async function runOcrWithOpenAI({
     })
     .join("\n");
 
+  // Build comprehensive extraction prompt
+  const comprehensivePrompt = `Extract all text and data from this Indian tax image and return it as a structured JSON object. Include: supplier details, customer details, invoice details (number, date, order details), line items with descriptions, quantities, rates, amounts, GST breakdowns, and totals. Be precise and include all numerical values exactly as shown along with the mapped fields in the config.`;
+
   // Build complete system message
   const systemMessage = `
 You are an OCR assistant that extracts structured data from documents.
 
-USER INSTRUCTIONS:
+PRIMARY INSTRUCTION:
+${comprehensivePrompt}
+
+ADDITIONAL USER INSTRUCTIONS:
 ${prompt}
 
-FIELD SCHEMA:
-Extract the following fields and return them as a JSON object:
+REQUIRED FIELD SCHEMA (must be included):
 ${schemaDescription}
 
 RULES:
 1. Return ONLY valid JSON, no additional text or markdown.
-2. Use exact field keys as specified above.
-3. Extract all required fields. If missing, set to null.
-4. For optional fields, omit if not found or set to null.
-5. Coerce values to the correct data types (string, number, date, boolean, array).
-6. For dates, use ISO 8601 format (YYYY-MM-DD).
-7. For arrays, return as JSON arrays.
-8. Be precise and extract exact values from the document.
+2. Extract ALL visible text and data from the document, not just the fields listed above.
+3. For the required fields above, use exact field keys as specified.
+4. For additional fields found in the document, use descriptive keys (e.g., "supplier_name", "customer_address", "gst_amount", "line_items", etc.).
+5. Extract all required fields. If missing, set to null.
+6. Include ALL line items, amounts, GST details, totals, and any other visible information.
+7. Coerce values to the correct data types (string, number, date, boolean, array).
+8. For dates, use ISO 8601 format (YYYY-MM-DD).
+9. For arrays (like line items), return as JSON arrays.
+10. Be precise and extract exact values exactly as shown in the document.
+11. Include all numerical values, percentages, and amounts with exact precision.
 `.trim();
 
   // Call OpenAI - use Vision API if image data provided
@@ -85,7 +93,7 @@ RULES:
           content: [
             {
               type: "text",
-              text: "Extract data from this document image:",
+              text: "Extract ALL text and data from this Indian tax invoice image. Include every detail: supplier information, customer information, invoice number, dates, line items with descriptions, quantities, rates, amounts, GST breakdowns (CGST, SGST, IGST), totals, and any other visible information. Return everything as a structured JSON object.",
             },
             {
               type: "image_url",
@@ -110,7 +118,7 @@ RULES:
         },
         {
           role: "user",
-          content: `Extract data from this document:\n\n${inputText}`,
+          content: `Extract ALL text and data from this Indian tax invoice document. Include every detail: supplier information, customer information, invoice number, dates, line items with descriptions, quantities, rates, amounts, GST breakdowns (CGST, SGST, IGST), totals, and any other visible information. Return everything as a structured JSON object.\n\nDocument text:\n${inputText}`,
         },
       ],
       temperature: 0,

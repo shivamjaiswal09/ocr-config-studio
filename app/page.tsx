@@ -4,9 +4,10 @@ import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ConfigManagement from "@/components/ConfigManagement";
 import RunOcr from "@/components/RunOcr";
+import FreightAudit from "@/components/FreightAudit";
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState("config");
+  const [activeTab, setActiveTab] = useState("freight-audit");
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
@@ -23,10 +24,15 @@ export default function Home() {
 
         {/* Main Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full max-w-md grid-cols-2 mb-6">
+          <TabsList className="grid w-full max-w-2xl grid-cols-3 mb-6">
+            <TabsTrigger value="freight-audit">🚚 Freight Audit</TabsTrigger>
             <TabsTrigger value="config">⚙️ Config Management</TabsTrigger>
             <TabsTrigger value="run">🚀 Run OCR</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="freight-audit" className="mt-0">
+            <FreightAudit />
+          </TabsContent>
 
           <TabsContent value="config" className="mt-0">
             <ConfigManagement />

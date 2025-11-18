@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabaseClient";
 import { runOcrWithOpenAI } from "@/lib/ocr/openaiOcr";
 import { mapToFreightPayload } from "@/lib/ocr/mapping";
+import { pdfToText } from "@/lib/ocr/pdfProcessor";
 import { OcrConfig, RunOcrRequest, RunOcrResponse } from "@/types/ocr";
 
 /**
@@ -26,6 +27,42 @@ export async function POST(request: NextRequest) {
         { error: "Either inputText or imageData is required" },
         { status: 400 }
       );
+    }
+
+    // Handle PDF files - convert to text
+    let processedInputText = body.inputText;
+    let processedImageData = body.imageData;
+    
+    if (body.fileType === "application/pdf" && body.imageData) {
+      try {
+        // Extract base64 data (remove data URL prefix if present)
+        const base64Data = body.imageData.includes(",") 
+          ? body.imageData.split(",")[1] 
+          : body.imageData;
+        
+        // Convert base64 to buffer
+        const pdfBuffer = Buffer.from(base64Data, "base64");
+        
+        // Extract text from PDF
+        const extractedText = await pdfToText(pdfBuffer);
+        
+        if (!extractedText || extractedText.trim() === "") {
+          return NextResponse.json(
+            { error: "Could not extract text from PDF. The PDF might be image-based or corrupted." },
+            { status: 400 }
+          );
+        }
+        
+        // Use extracted text instead of image
+        processedInputText = extractedText;
+        processedImageData = undefined;
+      } catch (pdfError: any) {
+        console.error("PDF processing error:", pdfError);
+        return NextResponse.json(
+          { error: "Failed to process PDF file", details: pdfError.message },
+          { status: 400 }
+        );
+      }
     }
 
     // Step 1: Resolve config
@@ -115,8 +152,8 @@ export async function POST(request: NextRequest) {
     try {
       ocrResult = await runOcrWithOpenAI({
         prompt: config.prompt,
-        inputText: body.inputText,
-        imageData: body.imageData,
+        inputText: processedInputText,
+        imageData: processedImageData,
         fields: config.fields,
       });
     } catch (ocrError: any) {

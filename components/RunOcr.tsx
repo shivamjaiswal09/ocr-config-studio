@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -16,9 +15,8 @@ import { OcrConfig, RunOcrResponse } from "@/types/ocr";
 export default function RunOcr() {
   const [configs, setConfigs] = useState<OcrConfig[]>([]);
   const [selectedConfigId, setSelectedConfigId] = useState<string>("");
-  const [inputText, setInputText] = useState("");
-  const [inputMode, setInputMode] = useState<"text" | "file">("text");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [filePreview, setFilePreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<RunOcrResponse | null>(null);
 
@@ -58,6 +56,17 @@ export default function RunOcr() {
       }
       
       setSelectedFile(file);
+      
+      // Create preview for images
+      if (file.type.startsWith("image/")) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          setFilePreview(e.target?.result as string);
+        };
+        reader.readAsDataURL(file);
+      } else {
+        setFilePreview(null);
+      }
     }
   };
 
@@ -67,12 +76,7 @@ export default function RunOcr() {
       return;
     }
 
-    if (inputMode === "text" && !inputText.trim()) {
-      toast.error("Please provide input text");
-      return;
-    }
-
-    if (inputMode === "file" && !selectedFile) {
+    if (!selectedFile) {
       toast.error("Please upload a file");
       return;
     }
@@ -81,18 +85,13 @@ export default function RunOcr() {
       setLoading(true);
       setResult(null);
 
-      let requestBody: any = {
+      // Convert file to base64 for API
+      const base64 = await fileToBase64(selectedFile!);
+      const requestBody = {
         configId: selectedConfigId,
+        imageData: base64,
+        fileType: selectedFile.type,
       };
-
-      if (inputMode === "text") {
-        requestBody.inputText = inputText;
-      } else {
-        // Convert file to base64 for API
-        const base64 = await fileToBase64(selectedFile!);
-        requestBody.imageData = base64;
-        requestBody.fileType = selectedFile!.type;
-      }
 
       const response = await fetch("/api/ocr/run", {
         method: "POST",
@@ -108,6 +107,20 @@ export default function RunOcr() {
       const data: RunOcrResponse = await response.json();
       setResult(data);
       toast.success("OCR completed successfully!");
+      
+      // Keep file preview after OCR completes
+      if (selectedFile && !filePreview) {
+        if (selectedFile.type.startsWith("image/")) {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            setFilePreview(e.target?.result as string);
+          };
+          reader.readAsDataURL(selectedFile);
+        } else if (selectedFile.type === "application/pdf") {
+          // For PDFs, show a placeholder or extract first page
+          setFilePreview(null); // PDF preview can be added later if needed
+        }
+      }
     } catch (error: any) {
       toast.error("OCR failed", { description: error.message });
     } finally {
@@ -125,45 +138,6 @@ export default function RunOcr() {
   };
 
   const selectedConfig = configs.find((c) => c.id === selectedConfigId);
-
-  const loadSampleData = () => {
-    setInputText(`FREIGHT INVOICE
-
-Invoice Number: INV-2024-001
-Invoice Date: 2024-01-15
-Due Date: 2024-02-15
-
-Consignor: ABC Corporation
-123 Business Street
-Mumbai, Maharashtra 400001
-GST: 27AABCU9603R1ZM
-
-Consignee: XYZ Retail Ltd
-456 Market Road
-Pune, Maharashtra 411001
-GST: 27AACXZ1234E1ZN
-
-Transporter: FastShip Logistics
-LR Number: LR-2024-5678
-Vehicle Number: MH 12 AB 1234
-
-Origin: Mumbai
-Destination: Pune
-Weight: 500 KG
-
-CHARGES:
-Freight Charge: 5000.00
-Loading Charge: 500.00
-Unloading Charge: 300.00
-CGST (9%): 522.00
-SGST (9%): 522.00
-
-Total Amount: 6844.00
-
-Payment Terms: Net 30 Days
-`);
-    toast.info("Sample data loaded");
-  };
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -214,119 +188,61 @@ Payment Terms: Net 30 Days
             </Card>
           )}
 
-          {/* Input Mode Selector */}
+          {/* File Upload */}
           <div className="space-y-2">
-            <Label>Input Method</Label>
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant={inputMode === "text" ? "default" : "outline"}
-                onClick={() => setInputMode("text")}
-                className="flex-1"
-              >
-                📝 Text Input
-              </Button>
-              <Button
-                type="button"
-                variant={inputMode === "file" ? "default" : "outline"}
-                onClick={() => setInputMode("file")}
-                className="flex-1"
-              >
-                📁 Upload File
-              </Button>
+            <Label htmlFor="fileUpload">Upload Document *</Label>
+            <div className="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg p-8 text-center hover:border-primary transition-colors">
+              <input
+                id="fileUpload"
+                type="file"
+                accept="image/jpeg,image/jpg,image/png,image/webp,application/pdf"
+                onChange={handleFileChange}
+                className="hidden"
+              />
+              <label htmlFor="fileUpload" className="cursor-pointer">
+                {selectedFile ? (
+                  <div className="space-y-2">
+                    <div className="text-4xl">
+                      {selectedFile.type.includes("pdf") ? "📄" : "🖼️"}
+                    </div>
+                    <p className="font-medium text-slate-900 dark:text-white">
+                      {selectedFile.name}
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      {(selectedFile.size / 1024).toFixed(2)} KB
+                    </p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setSelectedFile(null);
+                        setFilePreview(null);
+                      }}
+                    >
+                      Change File
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="text-4xl">📁</div>
+                    <p className="font-medium text-slate-900 dark:text-white">
+                      Click to upload or drag and drop
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      JPG, PNG, WebP, or PDF (max 10MB)
+                    </p>
+                  </div>
+                )}
+              </label>
             </div>
           </div>
-
-          {/* Text Input Mode */}
-          {inputMode === "text" && (
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <Label htmlFor="inputText">Document Text *</Label>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={loadSampleData}
-                  className="text-xs"
-                >
-                  Load Sample
-                </Button>
-              </div>
-              <Textarea
-                id="inputText"
-                value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
-                placeholder="Paste or type document text here..."
-                rows={15}
-                className="font-mono text-sm"
-              />
-              <p className="text-xs text-slate-500">
-                {inputText.length} characters
-              </p>
-            </div>
-          )}
-
-          {/* File Upload Mode */}
-          {inputMode === "file" && (
-            <div className="space-y-2">
-              <Label htmlFor="fileUpload">Upload Document *</Label>
-              <div className="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg p-8 text-center hover:border-primary transition-colors">
-                <input
-                  id="fileUpload"
-                  type="file"
-                  accept="image/jpeg,image/jpg,image/png,image/webp,application/pdf"
-                  onChange={handleFileChange}
-                  className="hidden"
-                />
-                <label htmlFor="fileUpload" className="cursor-pointer">
-                  {selectedFile ? (
-                    <div className="space-y-2">
-                      <div className="text-4xl">
-                        {selectedFile.type.includes("pdf") ? "📄" : "🖼️"}
-                      </div>
-                      <p className="font-medium text-slate-900 dark:text-white">
-                        {selectedFile.name}
-                      </p>
-                      <p className="text-xs text-slate-500">
-                        {(selectedFile.size / 1024).toFixed(2)} KB
-                      </p>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setSelectedFile(null);
-                        }}
-                      >
-                        Change File
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <div className="text-4xl">📁</div>
-                      <p className="font-medium text-slate-900 dark:text-white">
-                        Click to upload or drag and drop
-                      </p>
-                      <p className="text-xs text-slate-500">
-                        JPG, PNG, WebP, or PDF (max 10MB)
-                      </p>
-                    </div>
-                  )}
-                </label>
-              </div>
-            </div>
-          )}
 
           {/* Run Button */}
           <Button
             onClick={handleRunOcr}
-            disabled={
-              loading || 
-              !selectedConfigId || 
-              (inputMode === "text" && !inputText.trim()) ||
-              (inputMode === "file" && !selectedFile)
-            }
+            disabled={loading || !selectedConfigId || !selectedFile}
             className="w-full"
             size="lg"
           >
@@ -369,41 +285,41 @@ Payment Terms: Net 30 Days
               <p className="text-sm mt-2">Select a config and run OCR to see results</p>
             </div>
           ) : (
-            <Tabs defaultValue="mapped" className="w-full">
+            <Tabs defaultValue="document" className="w-full">
               <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="mapped">Mapped Payload</TabsTrigger>
+                <TabsTrigger value="document">📄 Document</TabsTrigger>
                 <TabsTrigger value="raw">Raw JSON</TabsTrigger>
               </TabsList>
 
-              <TabsContent value="mapped" className="mt-4">
-                {result.mapped_payload && Object.keys(result.mapped_payload).length > 0 ? (
-                  <div className="space-y-3">
-                    {Object.entries(result.mapped_payload).map(([key, value]) => (
-                      <div key={key} className="border-b pb-2">
-                        <strong className="text-sm text-slate-700 dark:text-slate-300">
-                          {key}:
-                        </strong>
-                        <p className="text-sm text-slate-900 dark:text-white mt-1">
-                          {value === null ? (
-                            <span className="text-slate-400 italic">null</span>
-                          ) : typeof value === "object" ? (
-                            <pre className="bg-slate-100 dark:bg-slate-800 p-2 rounded text-xs overflow-x-auto">
-                              {JSON.stringify(value, null, 2)}
-                            </pre>
-                          ) : (
-                            String(value)
-                          )}
-                        </p>
+              {/* Document Preview Tab */}
+              <TabsContent value="document" className="mt-4">
+                {filePreview ? (
+                  <div className="space-y-4">
+                    <div className="border rounded-lg overflow-hidden bg-slate-50 dark:bg-slate-900">
+                      <img 
+                        src={filePreview} 
+                        alt="Uploaded document" 
+                        className="w-full h-auto max-h-[600px] object-contain"
+                      />
+                    </div>
+                    {selectedFile && (
+                      <div className="text-xs text-slate-500">
+                        <p><strong>File:</strong> {selectedFile.name}</p>
+                        <p><strong>Size:</strong> {(selectedFile.size / 1024).toFixed(2)} KB</p>
+                        <p><strong>Type:</strong> {selectedFile.type}</p>
                       </div>
-                    ))}
+                    )}
                   </div>
                 ) : (
-                  <p className="text-sm text-slate-500">No mapped data</p>
+                  <div className="text-center py-12 text-slate-500">
+                    <p>No document preview available</p>
+                  </div>
                 )}
               </TabsContent>
 
+              {/* Raw JSON Tab */}
               <TabsContent value="raw" className="mt-4">
-                <pre className="bg-slate-100 dark:bg-slate-900 p-4 rounded text-xs overflow-x-auto">
+                <pre className="bg-slate-100 dark:bg-slate-900 p-4 rounded text-xs overflow-x-auto max-h-[500px] overflow-y-auto">
                   {JSON.stringify(result.raw_response, null, 2)}
                 </pre>
               </TabsContent>
