@@ -21,8 +21,15 @@ function getSupabaseClient(): SupabaseClient | null {
   }
 
   try {
+    // Validate URL format
+    const supabaseUrl = process.env.SUPABASE_URL?.trim();
+    if (!supabaseUrl || !supabaseUrl.startsWith('https://') || !supabaseUrl.includes('.supabase.co')) {
+      console.warn("Invalid Supabase URL format. Expected: https://[project-ref].supabase.co");
+      return null;
+    }
+
     _supabase = createClient(
-      process.env.SUPABASE_URL,
+      supabaseUrl,
       process.env.SUPABASE_SERVICE_ROLE_KEY,
       {
         auth: {

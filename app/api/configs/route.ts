@@ -40,6 +40,18 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error("Supabase error fetching configs:", error);
+      
+      // Check if error is HTML (404 page) - means Supabase URL is wrong
+      if (typeof error.message === 'string' && error.message.includes('<!DOCTYPE html>')) {
+        return NextResponse.json(
+          { 
+            error: "Failed to fetch configs", 
+            details: "Supabase URL appears to be incorrect. Please verify SUPABASE_URL points to your Supabase project API endpoint (e.g., https://[project-ref].supabase.co)" 
+          },
+          { status: 500 }
+        );
+      }
+      
       return NextResponse.json(
         { error: "Failed to fetch configs", details: error.message },
         { status: 500 }
