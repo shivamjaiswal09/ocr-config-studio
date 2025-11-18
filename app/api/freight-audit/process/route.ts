@@ -280,14 +280,18 @@ Return the data as JSON with trips as an array if multiple trips exist, or as a 
       let errorMessage = ocrError.message || "Unknown error during OCR extraction";
       if (errorMessage.includes("No trips found")) {
         errorMessage = "The invoice PDF was processed, but no trip information was found. Please ensure the PDF contains vehicle numbers, freight charges, or trip details.";
-      } else if (errorMessage.includes("Could not extract text") || errorMessage.includes("image-based")) {
-        errorMessage = "Could not extract text from PDF. The PDF might be image-based or corrupted. Please try a different PDF file.";
+      } else if (errorMessage.includes("Could not extract text") || errorMessage.includes("image-based") || errorMessage.includes("scanned document")) {
+        errorMessage = "This PDF appears to be image-based (scanned document). Currently, we only support text-based PDFs. Please use a PDF with selectable text, or convert the scanned PDF pages to images (PNG/JPEG) and upload those instead.";
       } else if (errorMessage.includes("corrupted") || errorMessage.includes("XRef") || errorMessage.includes("unsupported format")) {
         errorMessage = "The PDF file appears to be corrupted or in an unsupported format. Please try a different PDF file or ensure the file is not password-protected.";
       } else if (errorMessage.includes("OpenAI")) {
         errorMessage = "OCR processing failed. Please check your OpenAI API configuration and try again.";
-      } else if (errorMessage.includes("parse PDF")) {
-        errorMessage = "Failed to parse the PDF file. Please ensure the file is a valid PDF and try again.";
+      } else if (errorMessage.includes("parse PDF") || errorMessage.includes("Invalid MIME type")) {
+        if (errorMessage.includes("Invalid MIME type")) {
+          errorMessage = "OpenAI Vision API doesn't support PDF files directly. Please use a text-based PDF (with selectable text) or convert PDF pages to images (PNG/JPEG) first.";
+        } else {
+          errorMessage = "Failed to parse the PDF file. Please ensure the file is a valid PDF and try again.";
+        }
       }
       
       return NextResponse.json(

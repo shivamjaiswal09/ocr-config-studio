@@ -246,7 +246,8 @@ function normalizeTrip(trip: any): ExtractedInvoiceTrip {
 
 /**
  * Extract invoice data from PDF using existing OCR service
- * Falls back to OpenAI Vision API if text extraction fails (for image-based PDFs)
+ * Note: OpenAI Vision API doesn't support PDFs directly - only image formats
+ * For image-based PDFs, convert PDF pages to images first before using Vision API
  */
 export async function extractInvoiceFromPdf(
   pdfBuffer: Buffer,
@@ -254,67 +255,56 @@ export async function extractInvoiceFromPdf(
     prompt: string;
     fields: any[];
   },
-  pdfBase64?: string // Optional base64 for Vision API fallback
+  pdfBase64?: string // Optional base64 (not used for Vision API - PDFs not supported)
 ): Promise<ExtractedInvoice> {
   try {
-    // Step 1: Try to convert PDF to text
+    // Step 1: Convert PDF to text
     console.log("Step 1: Attempting to extract text from PDF...");
-    let extractedText: string | undefined;
-    let useVisionApi = false;
+    let extractedText: string;
     
     try {
       extractedText = await pdfToText(pdfBuffer);
       
       if (!extractedText || extractedText.trim() === "") {
-        console.log("No text extracted from PDF, will use Vision API fallback");
-        useVisionApi = true;
-      } else {
-        console.log("PDF text extracted successfully, length:", extractedText.length);
+        // PDF has no extractable text - likely image-based/scanned PDF
+        throw new Error("PDF contains pages but no extractable text. This PDF appears to be image-based (scanned document). Currently, we only support text-based PDFs. Please use a PDF with selectable text, or convert the scanned PDF pages to images (PNG/JPEG) and upload those instead.");
       }
-    } catch (pdfError: any) {
-      console.warn("PDF text extraction failed, will use Vision API fallback:", pdfError.message);
-      useVisionApi = true;
       
-      // Check for password-protected PDFs (can't use Vision API for these)
+      console.log("PDF text extracted successfully, length:", extractedText.length);
+    } catch (pdfError: any) {
+      console.error("PDF text extraction failed:", pdfError.message);
       const errorMessage = pdfError.message || "";
+      
+      // Provide specific error messages
       if (errorMessage.includes("password") || errorMessage.includes("encrypted")) {
         throw new Error("The PDF file is password-protected or encrypted. Please provide an unlocked version of the PDF.");
       }
       
-      // For other errors, we'll try Vision API as fallback
-      if (!pdfBase64) {
-        // If we don't have base64, we can't use Vision API
-        if (errorMessage.includes("XRef") || errorMessage.includes("xref") || errorMessage.includes("corrupted")) {
-          throw new Error("The PDF file appears to be corrupted or in an unsupported format. Please try a different PDF file or ensure the file is not password-protected.");
-        }
-        throw new Error(`Failed to parse PDF: ${errorMessage}`);
+      if (errorMessage.includes("XRef") || errorMessage.includes("xref") || errorMessage.includes("corrupted")) {
+        throw new Error("The PDF file appears to be corrupted or in an unsupported format. Please try a different PDF file or ensure the file is not password-protected.");
       }
+      
+      if (errorMessage.includes("image-based") || errorMessage.includes("no extractable text")) {
+        throw new Error("This PDF appears to be image-based (scanned document). Currently, we only support text-based PDFs. Please use a PDF with selectable text, or convert the scanned PDF pages to images (PNG/JPEG) and upload those instead.");
+      }
+      
+      if (errorMessage.includes("Invalid PDF") || errorMessage.includes("does not start with PDF header")) {
+        throw new Error("Invalid PDF file format. Please ensure you're uploading a valid PDF document.");
+      }
+      
+      // Generic error
+      throw new Error(`Failed to extract text from PDF: ${errorMessage}`);
     }
 
-    // Step 2: Run OCR with OpenAI (text-based or Vision API)
-    console.log(`Step 2: Running OCR with OpenAI (${useVisionApi ? 'Vision API' : 'text-based'})...`);
+    // Step 2: Run OCR with OpenAI (text-based only - Vision API doesn't support PDFs)
+    console.log("Step 2: Running OCR with OpenAI (text-based)...");
     
-    let ocrResult;
-    if (useVisionApi && pdfBase64) {
-      // Use Vision API for image-based PDFs
-      console.log("Using OpenAI Vision API to process PDF as image...");
-      ocrResult = await runOcrWithOpenAI({
-        prompt: ocrConfig.prompt,
-        inputText: undefined,
-        imageData: pdfBase64, // Pass PDF as base64 image to Vision API
-        fields: ocrConfig.fields,
-      });
-    } else if (extractedText) {
-      // Use standard text-based OCR
-      ocrResult = await runOcrWithOpenAI({
-        prompt: ocrConfig.prompt,
-        inputText: extractedText,
-        imageData: undefined,
-        fields: ocrConfig.fields,
-      });
-    } else {
-      throw new Error("Unable to process PDF: no text extracted and no image data available.");
-    }
+    const ocrResult = await runOcrWithOpenAI({
+      prompt: ocrConfig.prompt,
+      inputText: extractedText,
+      imageData: undefined, // PDFs not supported by Vision API
+      fields: ocrConfig.fields,
+    });
 
     console.log("OCR completed, raw response keys:", Object.keys(ocrResult.parsedJson || {}));
 
@@ -350,13 +340,8 @@ export async function extractInvoiceFromBase64(
 
   // Convert base64 to buffer
   const pdfBuffer = Buffer.from(base64String, "base64");
-  
-  // Pass the original base64 data URL for Vision API fallback
-  // Ensure it has the proper data URL format
-  const pdfDataUrl = base64Data.startsWith("data:") 
-    ? base64Data 
-    : `data:application/pdf;base64,${base64String}`;
 
-  return extractInvoiceFromPdf(pdfBuffer, ocrConfig, pdfDataUrl);
+  // Extract from PDF (text-based only - Vision API doesn't support PDFs)
+  return extractInvoiceFromPdf(pdfBuffer, ocrConfig);
 }
 
